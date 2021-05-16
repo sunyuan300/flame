@@ -8,14 +8,15 @@ func Group(f *Flame) {
 	flameGroup := f.Web.Group("/api", middle.ResId())
 	ScrapeGroup := flameGroup.Group("/scrape")
 	{
-		ScrapeGroup.GET("/:job_name", getNodeScrapeHandler(f))
+		ScrapeGroup.DELETE("/:job_name", removeScrapeHandler(f))
+		// ?labels[a]=b&labels[b]=c
+		ScrapeGroup.GET("", listScrapeHandler(f))
+		ScrapeGroup.GET("/:job_name", getScrapeHandler(f))
 	}
 	NodeScrapeGroup := flameGroup.Group("/node_scrape")
 	{
 		NodeScrapeGroup.POST("", addNodeScrapeHandler(f))
-		NodeScrapeGroup.DELETE("/:job_name", removeNodeScrapeHandler(f))
-		// ?labels[a]=b&labels[b]=c
-		NodeScrapeGroup.GET("", listNodeScrapeHandler(f))
+		NodeScrapeGroup.POST("/:job_name", updateNodeScrapeHandler(f))
 	}
 	TargetGroup := flameGroup.Group("/scrape/:job_name/static_target")
 	{
