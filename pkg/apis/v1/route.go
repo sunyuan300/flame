@@ -1,10 +1,15 @@
 package v1
 
 import (
+	_ "flame/docs"
+
 	"flame/pkg/middle"
+	gs "github.com/swaggo/gin-swagger"
+	"github.com/swaggo/gin-swagger/swaggerFiles"
 )
 
 func Group(f *Flame) {
+	f.Web.GET("/swagger/*any", gs.WrapHandler(swaggerFiles.Handler))
 	flameGroup := f.Web.Group("/api", middle.ResId())
 	ScrapeGroup := flameGroup.Group("/scrape")
 	{

@@ -27,6 +27,15 @@ func getScrapeHandler(f *Flame) gin.HandlerFunc {
 	}
 }
 
+// listScrapeHandler 查询scrape列表接口
+// @Summary 查询scrape列表接口
+// @Description 可按labels进行筛选查询
+// @Tags prom
+// @Accept application/json
+// @Param labels[psa] query string false "可通过label筛选，example：?labels[k1]=v1"
+// @Param labels[exporter_type] query string false "可通过多个label筛选获取并集，example：?labels[k1]=v1&labels[k2]=v2"
+// @Success 200 {object} _ResponseScrapeList "返回值"
+// @Router /scrape [get]
 func listScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		queryMap := c.QueryMap("labels")

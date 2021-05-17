@@ -67,7 +67,7 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 
 		newScrapeConfig := ns.Marshal()
 		i := f.PromController.Instance.ScrapeMap[c.Param("job_name")]
-		if newScrapeConfig.ScrapeTimeout != 0 {
+		if newScrapeConfig.ScrapeInterval != 0 {
 			f.PromController.Instance.Config.ScrapeConfigs[i].ScrapeInterval = newScrapeConfig.ScrapeInterval
 		}
 		if newScrapeConfig.ScrapeTimeout != 0 {

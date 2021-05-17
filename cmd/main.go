@@ -1,5 +1,13 @@
 package main
 
+// @title flame接口说明
+// @version 1.0
+// @description flame提供相应的接口，用于prometheus的监控注册、告警添加
+
+// @contact.name solid
+
+// @host localhost:8080
+// @BasePath /api
 import (
 	"flame/pkg/apis/v1"
 	"fmt"
