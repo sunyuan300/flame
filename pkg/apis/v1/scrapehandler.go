@@ -33,7 +33,7 @@ func getScrapeHandler(f *Flame) gin.HandlerFunc {
 // @Tags prom
 // @Accept application/json
 // @Param labels[psa] query string false "可通过label筛选，example：?labels[k1]=v1"
-// @Param labels[exporter_type] query string false "可通过多个label筛选获取并集，example：?labels[k1]=v1&labels[k2]=v2"
+// @Param labels[exporter_type] query string false "可通过多个label筛选获取交集，example：?labels[k1]=v1&labels[k2]=v2"
 // @Success 200 {object} _ResponseScrapeList "返回值"
 // @Router /scrape [get]
 func listScrapeHandler(f *Flame) gin.HandlerFunc {
@@ -53,7 +53,7 @@ func listScrapeHandler(f *Flame) gin.HandlerFunc {
 		} else {
 			for k, v := range queryMap {
 				jobs := f.PromController.Instance.LabelsMap[k][v]
-				res = append(res, jobs...)
+				res = fshare.Intersect(res, jobs)
 			}
 			res = fshare.SliceDeduplication(res)
 			c.JSON(http.StatusOK, gin.H{

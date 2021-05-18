@@ -1,0 +1,40 @@
+basePath: /api
+definitions:
+  v1._ResponseScrapeList:
+    properties:
+      data:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      res_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: solid
+  description: flame提供相应的接口，用于prometheus的监控注册、告警添加
+  title: flame接口说明
+  version: "1.0"
+paths:
+  /scrape:
+    get:
+      consumes:
+      - application/json
+      description: 可按labels进行筛选查询
+      parameters:
+      - description: 可通过一个或多个label筛选，example：?labels[k1]=v1&labels[k2]=v2
+        in: query
+        name: labels[psa]
+        type: object
+      responses:
+        "200":
+          description: 返回值
+          schema:
+            $ref: '#/definitions/v1._ResponseScrapeList'
+      summary: 查询scrape列表接口
+      tags:
+      - prom
+swagger: "2.0"
