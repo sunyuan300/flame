@@ -8,6 +8,14 @@ import (
 	"net/http"
 )
 
+// addNodeScrapeHandler 创建node_scrape
+// @Summary 创建node scrape
+// @Description 创建exporter_type是node的scrape
+// @Tags prom
+// @Accept application/json
+// @Param node_scrape body scrape.NodeScrape ture "scrape的必填参数"
+// @Success 200 {object} _ResponseAddNodeScrape "返回值"
+// @Router /node_scrape [POST]
 func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ns scrape.NodeScrape
@@ -46,6 +54,15 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 	}
 }
 
+// updateNodeScrapeHandler 更新指定scrape名称的静态监控目标
+// @Summary 更新scrape的监控目标
+// @Description 更新指定scrape名称的静态监控目标
+// @Tags prom
+// @Accept application/json
+// @Param job_name path string ture "scrape的必须参数"
+// @Param node_scrape body _RequestUpdateNodeScrape false "一个或多个scrape的更新参数"
+// @Success 200 {object} _ResponseUpdateNodeScrape "返回值"
+// @Router /node_scrape/{job_name} [POST]
 func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ns scrape.NodeScrape

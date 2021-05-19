@@ -8,6 +8,14 @@ import (
 	"net/http"
 )
 
+// getScrapeHandler 获取scrape详细信息
+// @Summary 查询scrape详情接口
+// @Description 可获取整个scrape的
+// @Tags prom
+// @Accept application/json
+// @Param job_name path string ture "精确的scrape名称"
+// @Success 200 {object} _ResponseScrapeInfo "返回值"
+// @Router /scrape/{job_name} [get]
 func getScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		i, ok := f.PromController.Instance.ScrapeMap[c.Param("job_name")]
@@ -65,6 +73,14 @@ func listScrapeHandler(f *Flame) gin.HandlerFunc {
 	}
 }
 
+// removeScrapeHandler 删除指定名称的scrape
+// @Summary 删除scrape
+// @Description 删除指定名称的scrape
+// @Tags prom
+// @Accept application/json
+// @Param job_name path string ture "精确的scrape名称"
+// @Success 200 {object} _ResponseRemoveScrape "返回值"
+// @Router /scrape/{job_name} [delete]
 func removeScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		jobName := c.Param("job_name")

@@ -11,6 +11,15 @@ import (
 	"net/http"
 )
 
+// UpdateTargetHandler 更新指定node_scrape名称的参数
+// @Summary 更新node_scrape参数
+// @Description 更新指定node_scrape名称的参数
+// @Tags prom
+// @Accept application/json
+// @Param job_name path string ture "scrape的名称"
+// @Param targets body target.StaticTarget true "target的数组"
+// @Success 200 {object} _ResponseUpdateNodeScrape "返回值"
+// @Router /scrape/{job_name}/static_target [POST]
 func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var st target.StaticTarget
