@@ -3,7 +3,7 @@ package watcher
 import (
 	"flame/pkg/factory"
 	"fmt"
-	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/pkg/rulefmt"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,18 +33,18 @@ limitations under the License.
 */
 
 // PromController demonstrates how to implement a controller with client-go.
-type PromController struct {
+type RulesController struct {
 	indexer  cache.Indexer
 	queue    workqueue.RateLimitingInterface
 	informer cache.Controller
 
-	Instance factory.PromConfigInstance
+	Instance factory.RulesConfigInstance
 }
 
 // NewController creates a new Controller.
-func NewPromController(clientSet *kubernetes.Clientset) *PromController {
+func NewRulesController(clientSet *kubernetes.Clientset) *RulesController {
 	// create the pod watcher
-	ruleListWatcher := cache.NewListWatchFromClient(clientSet.CoreV1().RESTClient(), "configmaps", viper.GetString("namespace"), fields.OneTermEqualSelector("metadata.name", viper.GetString("prometheus-configmap")))
+	ruleListWatcher := cache.NewListWatchFromClient(clientSet.CoreV1().RESTClient(), "configmaps", viper.GetString("namespace"), fields.OneTermEqualSelector("metadata.name", viper.GetString("rules-configmap")))
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
@@ -76,42 +76,45 @@ func NewPromController(clientSet *kubernetes.Clientset) *PromController {
 		},
 	}, cache.Indexers{})
 
-	return &PromController{
+	//var ruleInstance factory.RulesConfigInstance
+	//ruleInstance.AllRulesGroups = make(map[string]*rulefmt.RuleGroups)
+	return &RulesController{
 		indexer:  indexer,
 		queue:    queue,
 		informer: informer,
+		//Instance: ruleInstance,
 	}
 }
 
-func (p *PromController) RunPromController() {
+func (r *RulesController) RunRulesController() {
 	stop := make(chan struct{})
 	defer close(stop)
-	p.Run(1, stop)
+	r.Run(1, stop)
 }
 
-func (p *PromController) processNextItem() bool {
+func (r *RulesController) processNextItem() bool {
 	// Wait until there is a new item in the working queue
-	key, quit := p.queue.Get()
+	key, quit := r.queue.Get()
 	if quit {
 		return false
 	}
 	// Tell the queue that we are done with processing this key. This unblocks the key for other workers
 	// This allows safe parallel processing because two pods with the same key are never processed in
 	// parallel.
-	defer p.queue.Done(key)
+	defer r.queue.Done(key)
 
 	// Invoke the method containing the business logic
-	err := p.syncToStdout(key.(string))
+	err := r.syncToStdout(key.(string))
 	// Handle the error if something went wrong during the execution of the business logic
-	p.handleErr(err, key)
+	r.handleErr(err, key)
 	return true
 }
 
 // syncToStdout is the business logic of the controller. In this controller it simply prints
 // information about the pod to stdout. In case an error happened, it has to simply return the error.
 // The retry logic should not be part of the business logic.
-func (p *PromController) syncToStdout(key string) error {
-	obj, exists, err := p.indexer.GetByKey(key)
+func (r *RulesController) syncToStdout(key string) error {
+	obj, exists, err := r.indexer.GetByKey(key)
 	if err != nil {
 		klog.Errorf("Fetching object with key %s from store failed with %v", key, err)
 		return err
@@ -119,74 +122,79 @@ func (p *PromController) syncToStdout(key string) error {
 
 	if !exists {
 		// Below we will warm up our cache with a Pod, so that we will see a delete for one pod
-		fmt.Printf("prometheus configmap %s does not exist anymore\n", key)
+		fmt.Printf("rules configmap %s does not exist anymore\n", key)
 	} else {
 		// Note that you also have to check the uid if you have a local controlled resource, which
 		// is dependent on the actual instance, to detect that a Pod was recreated with the same name
-		fmt.Printf("Sync/Add/Update for prometheus configmap %s\n", obj.(*v1.ConfigMap).GetName())
+		fmt.Printf("Sync/Add/Update for rules configmap %s\n", obj.(*v1.ConfigMap).GetName())
 		info := obj.(*v1.ConfigMap)
-		res, err := config.Load(info.Data[viper.GetString("prometheus.yml")])
-		if err != nil {
-			return err
+		r.Instance.AllRulesGroups = make(map[string]*rulefmt.RuleGroups)
+		for k, v := range info.Data {
+			groups, errs := rulefmt.Parse([]byte(v))
+			if errs != nil {
+				for _, err := range errs {
+					klog.Error(err)
+				}
+				return nil
+			}
+			r.Instance.AllRulesGroups[k] = groups
 		}
-		p.Instance.Config = res
-		p.Instance.UpdateScrapeCache()
-		//p.Instance.Lock.Unlock()
+		r.Instance.Lock.Unlock()
 	}
 	return nil
 }
 
 // handleErr checks if an error happened and makes sure we will retry later.
-func (p *PromController) handleErr(err error, key interface{}) {
+func (r *RulesController) handleErr(err error, key interface{}) {
 	if err == nil {
 		// Forget about the #AddRateLimited history of the key on every successful synchronization.
 		// This ensures that future processing of updates for this key is not delayed because of
 		// an outdated error history.
-		p.queue.Forget(key)
+		r.queue.Forget(key)
 		return
 	}
 
 	// This controller retries 5 times if something goes wrong. After that, it stops trying.
-	if p.queue.NumRequeues(key) < 5 {
-		klog.Infof("Error syncing prometheus configmap %v: %v", key, err)
+	if r.queue.NumRequeues(key) < 5 {
+		klog.Infof("Error syncing rules configmap %v: %v", key, err)
 
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
-		p.queue.AddRateLimited(key)
+		r.queue.AddRateLimited(key)
 		return
 	}
 
-	p.queue.Forget(key)
+	r.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	klog.Infof("Dropping prometheus configmap %q out of the queue: %v", key, err)
+	klog.Infof("Dropping rules configmap %q out of the queue: %v", key, err)
 }
 
 // Run begins watching and syncing.
-func (p *PromController) Run(threadiness int, stopCh chan struct{}) {
+func (r *RulesController) Run(threadiness int, stopCh chan struct{}) {
 	defer runtime.HandleCrash()
 
 	// Let the workers stop when we are done
-	defer p.queue.ShutDown()
-	klog.Info("Starting prometheus configmap controller")
+	defer r.queue.ShutDown()
+	klog.Info("Starting rules configmap controller")
 
-	go p.informer.Run(stopCh)
+	go r.informer.Run(stopCh)
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
-	if !cache.WaitForCacheSync(stopCh, p.informer.HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, r.informer.HasSynced) {
 		runtime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
 
 	for i := 0; i < threadiness; i++ {
-		go wait.Until(p.runWorker, time.Second, stopCh)
+		go wait.Until(r.runWorker, time.Second, stopCh)
 	}
 
 	<-stopCh
-	klog.Info("Stopping prometheus configmap controller")
+	klog.Info("Stopping rules configmap controller")
 }
 
-func (p *PromController) runWorker() {
-	for p.processNextItem() {
+func (r *RulesController) runWorker() {
+	for r.processNextItem() {
 	}
 }

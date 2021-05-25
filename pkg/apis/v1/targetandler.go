@@ -22,11 +22,12 @@ import (
 // @Router /scrape/{job_name}/static_target [POST]
 func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, _ := c.Get("reqId")
 		var st target.StaticTarget
 		jobName := c.Param("job_name")
 		if !f.PromController.Instance.ExistsJobName(jobName) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"res": id,
 				"msg": "job_name not exist.",
 			})
 			return
@@ -35,7 +36,7 @@ func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 		if err := c.ShouldBindJSON(&st); err != nil {
 			fmt.Println(err)
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"res": id,
 				"msg": "update target failed: parameter err.",
 			})
 			return
@@ -51,13 +52,13 @@ func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 		}
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"res": c.GetString("resId"),
+				"res": id,
 				"msg": "add target failed: update failed.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"res": c.GetString("resId"),
+			"res": id,
 			"msg": "add target success.",
 		})
 	}

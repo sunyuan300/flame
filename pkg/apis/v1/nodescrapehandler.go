@@ -18,10 +18,11 @@ import (
 // @Router /node_scrape [POST]
 func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, _ := c.Get("reqId")
 		var ns scrape.NodeScrape
 		if err := c.ShouldBindJSON(&ns); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "add node scrape failed: parameter err.",
 			})
 			return
@@ -29,26 +30,35 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 
 		if f.PromController.Instance.ExistsJobName(ns.JobName) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "job_name existed.",
 			})
 			return
 		}
 
-		newScrapeConfig := ns.Marshal()
+		newScrapeConfig, err := ns.Marshal()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"req": id,
+				"msg": "add node scrape failed: marshal failed.",
+			})
+			return
+		}
+
 		f.PromController.Instance.Config.ScrapeConfigs = append(f.PromController.Instance.Config.ScrapeConfigs, newScrapeConfig)
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
+		f.PromController.Instance.Lock.Lock()
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "add node scrape failed: update failed.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"res": c.GetString("resId"),
+			"req": id,
 			"msg": "add node scrape success.",
 		})
 	}
@@ -65,10 +75,11 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 // @Router /node_scrape/{job_name} [POST]
 func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, _ := c.Get("reqId")
 		var ns scrape.NodeScrape
 		if err := c.ShouldBindJSON(&ns); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "update node scrape failed: parameter err.",
 			})
 			return
@@ -76,13 +87,20 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 
 		if !f.PromController.Instance.ExistsJobName(c.Param("job_name")) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "job not found.",
 			})
 			return
 		}
 
-		newScrapeConfig := ns.Marshal()
+		newScrapeConfig, err := ns.Marshal()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"req": id,
+				"msg": "update node scrape failed: marshal failed.",
+			})
+			return
+		}
 		i := f.PromController.Instance.ScrapeMap[c.Param("job_name")]
 		if newScrapeConfig.ScrapeInterval != 0 {
 			f.PromController.Instance.Config.ScrapeConfigs[i].ScrapeInterval = newScrapeConfig.ScrapeInterval
@@ -99,15 +117,16 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
+		f.PromController.Instance.Lock.Lock()
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "update node scrape failed: update failed.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"res": c.GetString("resId"),
+			"req": id,
 			"msg": "update node scrape success.",
 		})
 	}

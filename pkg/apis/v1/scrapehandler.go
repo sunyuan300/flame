@@ -18,17 +18,18 @@ import (
 // @Router /scrape/{job_name} [get]
 func getScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, _ := c.Get("reqId")
 		i, ok := f.PromController.Instance.ScrapeMap[c.Param("job_name")]
 		if !ok {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": c.Param("job_name") + " not found.",
 			})
 			return
 		}
 		scrapeConfig := f.PromController.Instance.Config.ScrapeConfigs[i]
 		c.JSON(http.StatusOK, gin.H{
-			"res":  c.GetString("resId"),
+			"req":  id,
 			"data": scrapeConfig,
 			"msg":  "get " + c.Param("job_name") + " success.",
 		})
@@ -46,28 +47,35 @@ func getScrapeHandler(f *Flame) gin.HandlerFunc {
 // @Router /scrape [get]
 func listScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, _ := c.Get("reqId")
 		queryMap := c.QueryMap("labels")
-		var res []string
+		var req []string
 		if len(queryMap) == 0 {
 			for k := range f.PromController.Instance.ScrapeMap {
-				res = append(res, k)
+				req = append(req, k)
 			}
 			c.JSON(http.StatusOK, gin.H{
-				"res":  c.GetString("resId"),
-				"data": res,
-				"msg":  "get scrape list success.",
+				"req": id,
+				"data": gin.H{
+					"items": req,
+					"count": len(req),
+				},
+				"msg": "get scrape list success.",
 			})
 			return
 		} else {
 			for k, v := range queryMap {
 				jobs := f.PromController.Instance.LabelsMap[k][v]
-				res = fshare.Intersect(res, jobs)
+				req = fshare.Intersect(req, jobs)
 			}
-			res = fshare.SliceDeduplication(res)
+			req = fshare.SliceDeduplication(req)
 			c.JSON(http.StatusOK, gin.H{
-				"res":  c.GetString("resId"),
-				"data": res,
-				"msg":  "get scrape list success.",
+				"req": id,
+				"data": gin.H{
+					"items": req,
+					"count": len(req),
+				},
+				"msg": "get scrape list success.",
 			})
 		}
 	}
@@ -83,10 +91,11 @@ func listScrapeHandler(f *Flame) gin.HandlerFunc {
 // @Router /scrape/{job_name} [delete]
 func removeScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		id, _ := c.Get("reqId")
 		jobName := c.Param("job_name")
 		if !f.PromController.Instance.ExistsJobName(jobName) {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "job_name not exist.",
 			})
 			return
@@ -98,15 +107,16 @@ func removeScrapeHandler(f *Flame) gin.HandlerFunc {
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
+		f.PromController.Instance.Lock.Lock()
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"res": c.GetString("resId"),
+				"req": id,
 				"msg": "remove node scrape failed: update failed.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
-			"res": c.GetString("resId"),
+			"req": id,
 			"msg": "remove node scrape success.",
 		})
 	}
