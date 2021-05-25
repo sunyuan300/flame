@@ -25,6 +25,12 @@ func Group(f *Flame) {
 		NodeScrapeGroup.POST("", addNodeScrapeHandler(f))
 		NodeScrapeGroup.POST("/:job_name", updateNodeScrapeHandler(f))
 	}
+	BlackboxScrapeGroup := flameGroup.Group("blackbox_scrape")
+	{
+		BlackboxScrapeGroup.POST("", addBlackboxScrapeHandler(f))
+		BlackboxScrapeGroup.POST("/:job_name", updateBlackboxScrapeHandler(f))
+	}
+
 	TargetGroup := flameGroup.Group("/scrape/:job_name/static_target")
 	{
 		//add & update & remove

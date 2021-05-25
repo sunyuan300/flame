@@ -8,19 +8,27 @@ import (
 )
 
 type BlackboxScrape struct {
-	JobName string `from:"jobName"`
+	JobName string `from:"job_ame"`
 	// http_2xx or tcp_connect or icmp
-	Module         string         `from:"params"`
-	ScrapeInterval model.Duration `from:"interval"`
-	ScrapeTimeout  model.Duration `from:"timeout"`
+	Module         string `from:"params"`
+	ScrapeInterval string `from:"interval"`
+	ScrapeTimeout  string `from:"timeout"`
 	// default /probe
-	MetricsPath    string `from:"metricsPath"`
+	MetricsPath    string `from:"metrics_ath"`
 	BlackboxTarget string `form:"target"`
 	// 它至少应该包含psa和exporter类型标注
 	Labels map[string]string `from:"labels"`
 }
 
-func (bs *BlackboxScrape) Marshal() *config.ScrapeConfig {
+func (bs *BlackboxScrape) Marshal() (*config.ScrapeConfig, error) {
+	interval, err := model.ParseDuration(bs.ScrapeInterval)
+	if err != nil {
+		return nil, err
+	}
+	timeout, err := model.ParseDuration(bs.ScrapeTimeout)
+	if err != nil {
+		return nil, err
+	}
 	relabelConfigs := []*relabel.Config{
 		{
 			SourceLabels: model.LabelNames{"__address__"},
@@ -42,19 +50,9 @@ func (bs *BlackboxScrape) Marshal() *config.ScrapeConfig {
 	return &config.ScrapeConfig{
 		JobName:        bs.JobName,
 		Params:         url.Values{"module": []string{bs.Module}},
-		ScrapeInterval: bs.ScrapeInterval,
-		ScrapeTimeout:  bs.ScrapeTimeout,
+		ScrapeInterval: interval,
+		ScrapeTimeout:  timeout,
 		MetricsPath:    bs.MetricsPath,
-		//ServiceDiscoveryConfigs: discovery.Configs{
-		//	discovery.StaticConfig{
-		//		{
-		//			Targets: []model.LabelSet{
-		//				{model.AddressLabel: ss.Target},
-		//			},
-		//			Labels: ss.Labels,
-		//		},
-		//	},
-		//},
 		RelabelConfigs: relabelConfigs,
-	}
+	}, nil
 }
