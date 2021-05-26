@@ -28,14 +28,6 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
-		if f.PromController.Instance.ExistsJobName(ns.JobName) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"req": id,
-				"msg": "job_name existed.",
-			})
-			return
-		}
-
 		newScrapeConfig, err := ns.Marshal()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -50,6 +42,15 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
 		f.PromController.Instance.Lock.Lock()
+
+		if f.PromController.Instance.ExistsJobName(ns.JobName) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"req": id,
+				"msg": "job_name existed.",
+			})
+			return
+		}
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
@@ -85,14 +86,6 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
-		if !f.PromController.Instance.ExistsJobName(c.Param("job_name")) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"req": id,
-				"msg": "job not found.",
-			})
-			return
-		}
-
 		newScrapeConfig, err := ns.Marshal()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -118,6 +111,15 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
 		f.PromController.Instance.Lock.Lock()
+
+		if !f.PromController.Instance.ExistsJobName(c.Param("job_name")) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"req": id,
+				"msg": "job not found.",
+			})
+			return
+		}
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
