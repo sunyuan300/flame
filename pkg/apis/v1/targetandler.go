@@ -25,13 +25,6 @@ func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 		id, _ := c.Get("reqId")
 		var st target.StaticTarget
 		jobName := c.Param("job_name")
-		if !f.PromController.Instance.ExistsJobName(jobName) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"res": id,
-				"msg": "job_name not exist.",
-			})
-			return
-		}
 
 		if err := c.ShouldBindJSON(&st); err != nil {
 			fmt.Println(err)
@@ -45,12 +38,21 @@ func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 		for _, v := range st.Targets {
 			targets = append(targets, model.LabelSet{model.AddressLabel: model.LabelValue(v)})
 		}
+
+		f.PromController.Instance.Lock.Lock()
+		if !f.PromController.Instance.ExistsJobName(jobName) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"res": id,
+				"msg": "job_name not exist.",
+			})
+			return
+		}
 		i := f.PromController.Instance.ScrapeMap[jobName]
 		f.PromController.Instance.Config.ScrapeConfigs[i].ServiceDiscoveryConfigs = discovery.Configs{discovery.StaticConfig{{Targets: targets}}}
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
-		f.PromController.Instance.Lock.Lock()
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"res": id,

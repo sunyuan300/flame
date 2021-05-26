@@ -37,18 +37,18 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
-		f.PromController.Instance.Config.ScrapeConfigs = append(f.PromController.Instance.Config.ScrapeConfigs, newScrapeConfig)
-		data := map[string]string{
-			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
-		}
 		f.PromController.Instance.Lock.Lock()
-
 		if f.PromController.Instance.ExistsJobName(ns.JobName) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
 				"msg": "job_name existed.",
 			})
 			return
+		}
+
+		f.PromController.Instance.Config.ScrapeConfigs = append(f.PromController.Instance.Config.ScrapeConfigs, newScrapeConfig)
+		data := map[string]string{
+			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
 
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
@@ -94,6 +94,15 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			})
 			return
 		}
+
+		f.PromController.Instance.Lock.Lock()
+		if !f.PromController.Instance.ExistsJobName(c.Param("job_name")) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"req": id,
+				"msg": "job not found.",
+			})
+			return
+		}
 		i := f.PromController.Instance.ScrapeMap[c.Param("job_name")]
 		if newScrapeConfig.ScrapeInterval != 0 {
 			f.PromController.Instance.Config.ScrapeConfigs[i].ScrapeInterval = newScrapeConfig.ScrapeInterval
@@ -109,15 +118,6 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 		}
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
-		}
-		f.PromController.Instance.Lock.Lock()
-
-		if !f.PromController.Instance.ExistsJobName(c.Param("job_name")) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"req": id,
-				"msg": "job not found.",
-			})
-			return
 		}
 
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {

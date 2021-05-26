@@ -32,6 +32,16 @@ func updateRulesHandler(f *Flame) gin.HandlerFunc {
 			})
 			return
 		}
+
+		f.RulesController.Instance.Lock.Lock()
+		if !f.RulesController.Instance.ExistsRuleFileName(fileName) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"req": id,
+				"msg": "file_name not exist.",
+			})
+			return
+		}
+
 		for i, v := range f.RulesController.Instance.AllRulesGroups[fileName].Groups {
 			if v.Name == group.GroupName {
 				f.RulesController.Instance.AllRulesGroups[fileName].Groups[i].Rules = ruleNodes
@@ -48,7 +58,7 @@ func updateRulesHandler(f *Flame) gin.HandlerFunc {
 					}
 					data[k] = string(groups)
 				}
-				f.RulesController.Instance.Lock.Lock()
+
 				if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("rules-configmap"), data); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{
 						"req": id,

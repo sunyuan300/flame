@@ -68,6 +68,7 @@ func addRuleGroupHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
+		f.RulesController.Instance.Lock.Lock()
 		for _, v := range f.RulesController.Instance.AllRulesGroups[fileName].Groups {
 			if v.Name == groupName.GroupName {
 				c.JSON(http.StatusBadRequest, gin.H{
@@ -94,7 +95,7 @@ func addRuleGroupHandler(f *Flame) gin.HandlerFunc {
 			}
 			data[k] = string(groups)
 		}
-		f.RulesController.Instance.Lock.Lock()
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("rules-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
@@ -114,6 +115,8 @@ func removeRuleGroupHandler(f *Flame) gin.HandlerFunc {
 		id, _ := c.Get("reqId")
 		fileName := c.Param("file_name")
 		groupName := c.Param("group_name")
+
+		f.RulesController.Instance.Lock.Lock()
 		for i, v := range f.RulesController.Instance.AllRulesGroups[fileName].Groups {
 			if v.Name == groupName {
 				f.RulesController.Instance.AllRulesGroups[fileName].Groups = append(f.RulesController.Instance.AllRulesGroups[fileName].Groups[:i],
@@ -131,7 +134,7 @@ func removeRuleGroupHandler(f *Flame) gin.HandlerFunc {
 					}
 					data[k] = string(groups)
 				}
-				f.RulesController.Instance.Lock.Lock()
+
 				if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("rules-configmap"), data); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{
 						"req": id,

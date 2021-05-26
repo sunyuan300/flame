@@ -94,20 +94,20 @@ func removeScrapeHandler(f *Flame) gin.HandlerFunc {
 		id, _ := c.Get("reqId")
 		jobName := c.Param("job_name")
 
-		i := f.PromController.Instance.ScrapeMap[jobName]
-		f.PromController.Instance.Config.ScrapeConfigs = append(f.PromController.Instance.Config.ScrapeConfigs[:i],
-			f.PromController.Instance.Config.ScrapeConfigs[i+1:]...)
-		data := map[string]string{
-			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
-		}
 		f.PromController.Instance.Lock.Lock()
-
 		if !f.PromController.Instance.ExistsJobName(jobName) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
 				"msg": "job_name not exist.",
 			})
 			return
+		}
+
+		i := f.PromController.Instance.ScrapeMap[jobName]
+		f.PromController.Instance.Config.ScrapeConfigs = append(f.PromController.Instance.Config.ScrapeConfigs[:i],
+			f.PromController.Instance.Config.ScrapeConfigs[i+1:]...)
+		data := map[string]string{
+			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
 
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {

@@ -40,6 +40,7 @@ func addRuleFileHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
+		f.RulesController.Instance.Lock.Lock()
 		if f.RulesController.Instance.ExistsRuleFileName(fileName.FileName) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
@@ -61,7 +62,7 @@ func addRuleFileHandler(f *Flame) gin.HandlerFunc {
 			}
 			ruleData[k] = string(groups)
 		}
-		f.RulesController.Instance.Lock.Lock()
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("rules-configmap"), ruleData); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
@@ -70,11 +71,12 @@ func addRuleFileHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
+		f.PromController.Instance.Lock.Lock()
 		f.PromController.Instance.Config.RuleFiles = append(f.PromController.Instance.Config.RuleFiles, viper.GetString("rule-dir")+fileName.FileName)
 		promData := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
-		f.PromController.Instance.Lock.Lock()
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), promData); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
@@ -94,6 +96,8 @@ func removeRuleFileHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, _ := c.Get("reqId")
 		fileName := c.Param("file_name")
+
+		f.RulesController.Instance.Lock.Lock()
 		if !f.RulesController.Instance.ExistsRuleFileName(fileName) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
@@ -116,7 +120,6 @@ func removeRuleFileHandler(f *Flame) gin.HandlerFunc {
 			data[k] = string(groups)
 		}
 
-		f.RulesController.Instance.Lock.Lock()
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("rules-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
@@ -125,6 +128,7 @@ func removeRuleFileHandler(f *Flame) gin.HandlerFunc {
 			return
 		}
 
+		f.PromController.Instance.Lock.Lock()
 		for i, v := range f.PromController.Instance.Config.RuleFiles {
 			if v == (viper.GetString("rule-dir") + fileName) {
 				f.PromController.Instance.Config.RuleFiles = append(f.PromController.Instance.Config.RuleFiles[:i],
@@ -134,7 +138,7 @@ func removeRuleFileHandler(f *Flame) gin.HandlerFunc {
 		promData := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
-		f.PromController.Instance.Lock.Lock()
+
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), promData); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
