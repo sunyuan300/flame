@@ -17,6 +17,24 @@ type NodeScrape struct {
 }
 
 func (ns *NodeScrape) Marshal() (*config.ScrapeConfig, error) {
+	var interval model.Duration
+	var timeout model.Duration
+	var err error
+
+	if len(ns.ScrapeInterval) != 0 {
+		interval, err = model.ParseDuration(ns.ScrapeInterval)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if len(ns.ScrapeTimeout) != 0 {
+		timeout, err = model.ParseDuration(ns.ScrapeTimeout)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var relabelConfigs []*relabel.Config
 	for k, v := range ns.Labels {
 		relabelConfigs = append(relabelConfigs, &relabel.Config{
@@ -24,14 +42,7 @@ func (ns *NodeScrape) Marshal() (*config.ScrapeConfig, error) {
 			Replacement: v,
 		})
 	}
-	interval, err := model.ParseDuration(ns.ScrapeInterval)
-	if err != nil {
-		return nil, err
-	}
-	timeout, err := model.ParseDuration(ns.ScrapeTimeout)
-	if err != nil {
-		return nil, err
-	}
+
 	return &config.ScrapeConfig{
 		JobName:        ns.JobName,
 		ScrapeInterval: interval,
