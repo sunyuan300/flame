@@ -50,6 +50,7 @@ func UpdateTargetHandler(f *Flame) gin.HandlerFunc {
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
 		}
+		f.PromController.Instance.Lock.Lock()
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"res": id,
