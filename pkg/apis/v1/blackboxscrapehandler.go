@@ -8,37 +8,29 @@ import (
 	"net/http"
 )
 
-// addNodeScrapeHandler 创建node_scrape
-// @Summary 创建node scrape
-// @Description 创建exporter_type是node的scrape
-// @Tags prom
-// @Accept application/json
-// @Param node_scrape body scrape.NodeScrape ture "scrape的必填参数"
-// @Success 200 {object} _ResponseAddNodeScrape "返回值"
-// @Router /node_scrape [POST]
-func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
+func addBlackboxScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, _ := c.Get("reqId")
-		var ns scrape.NodeScrape
-		if err := c.ShouldBindJSON(&ns); err != nil {
+		var bs scrape.BlackboxScrape
+		if err := c.ShouldBindJSON(&bs); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
-				"msg": "add node scrape failed: parameter err.",
+				"msg": "add blackbox scrape failed: parameter err.",
 			})
 			return
 		}
 
-		newScrapeConfig, err := ns.Marshal()
+		newScrapeConfig, err := bs.Marshal()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
-				"msg": "add node scrape failed: marshal failed.",
+				"msg": "add blackbox scrape failed: marshal failed.",
 			})
 			return
 		}
 
 		f.PromController.Instance.Lock.Lock()
-		if f.PromController.Instance.ExistsJobName(ns.JobName) {
+		if f.PromController.Instance.ExistsJobName(bs.JobName) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
 				"msg": "job_name existed.",
@@ -65,32 +57,23 @@ func addNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 	}
 }
 
-// updateNodeScrapeHandler 更新指定scrape名称的静态监控目标
-// @Summary 更新scrape的监控目标
-// @Description 更新指定scrape名称的静态监控目标
-// @Tags prom
-// @Accept application/json
-// @Param job_name path string ture "scrape的必须参数"
-// @Param node_scrape body _RequestUpdateNodeScrape false "一个或多个scrape的更新参数"
-// @Success 200 {object} _ResponseUpdateNodeScrape "返回值"
-// @Router /node_scrape/{job_name} [POST]
-func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
+func updateBlackboxScrapeHandler(f *Flame) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, _ := c.Get("reqId")
-		var ns scrape.NodeScrape
-		if err := c.ShouldBindJSON(&ns); err != nil {
+		var bs scrape.BlackboxScrape
+		if err := c.ShouldBindJSON(&bs); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"req": id,
-				"msg": "update node scrape failed: parameter err.",
+				"msg": "update blackbox scrape failed: parameter err.",
 			})
 			return
 		}
 
-		newScrapeConfig, err := ns.Marshal()
+		newScrapeConfig, err := bs.Marshal()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
-				"msg": "update node scrape failed: marshal failed.",
+				"msg": "update blackbox scrape failed: marshal failed.",
 			})
 			return
 		}
@@ -103,6 +86,7 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 			})
 			return
 		}
+
 		i := f.PromController.Instance.ScrapeMap[c.Param("job_name")]
 		if newScrapeConfig.ScrapeInterval != 0 {
 			f.PromController.Instance.Config.ScrapeConfigs[i].ScrapeInterval = newScrapeConfig.ScrapeInterval
@@ -110,11 +94,20 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 		if newScrapeConfig.ScrapeTimeout != 0 {
 			f.PromController.Instance.Config.ScrapeConfigs[i].ScrapeTimeout = newScrapeConfig.ScrapeTimeout
 		}
+		if len(newScrapeConfig.Params.Get("module")) != 0 {
+			f.PromController.Instance.Config.ScrapeConfigs[i].Params = newScrapeConfig.Params
+		}
 		if newScrapeConfig.MetricsPath != "" {
 			f.PromController.Instance.Config.ScrapeConfigs[i].MetricsPath = newScrapeConfig.MetricsPath
 		}
-		if len(newScrapeConfig.RelabelConfigs) != 0 {
+		if bs.BlackboxTarget != "" && len(bs.Labels) != 0 {
 			f.PromController.Instance.Config.ScrapeConfigs[i].RelabelConfigs = newScrapeConfig.RelabelConfigs
+		} else if (bs.BlackboxTarget == "" && len(bs.Labels) != 0) || (bs.BlackboxTarget != "" && len(bs.Labels) == 0) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"req": id,
+				"msg": "target and labels must exist together or not exist together.",
+			})
+			return
 		}
 		data := map[string]string{
 			viper.GetString("prometheus.yml"): f.PromController.Instance.Config.String(),
@@ -123,13 +116,13 @@ func updateNodeScrapeHandler(f *Flame) gin.HandlerFunc {
 		if err := k8s.ConfigMapUpdate(f.K8sClient, viper.GetString("prometheus-configmap"), data); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"req": id,
-				"msg": "update node scrape failed: update failed.",
+				"msg": "update blackbox scrape failed: update failed.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"req": id,
-			"msg": "update node scrape success.",
+			"msg": "update blackbox scrape success.",
 		})
 	}
 }

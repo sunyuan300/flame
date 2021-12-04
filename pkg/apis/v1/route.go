@@ -10,7 +10,9 @@ import (
 
 func Group(f *Flame) {
 	f.Web.GET("/swagger/*any", gs.WrapHandler(swaggerFiles.Handler))
-	flameGroup := f.Web.Group("/api", middle.ResId())
+	flameGroup := f.Web.Group("/api", middle.ReqId())
+
+	// scrape apis
 	ScrapeGroup := flameGroup.Group("/scrape")
 	{
 		ScrapeGroup.DELETE("/:job_name", removeScrapeHandler(f))
@@ -23,9 +25,36 @@ func Group(f *Flame) {
 		NodeScrapeGroup.POST("", addNodeScrapeHandler(f))
 		NodeScrapeGroup.POST("/:job_name", updateNodeScrapeHandler(f))
 	}
+	BlackboxScrapeGroup := flameGroup.Group("blackbox_scrape")
+	{
+		BlackboxScrapeGroup.POST("", addBlackboxScrapeHandler(f))
+		BlackboxScrapeGroup.POST("/:job_name", updateBlackboxScrapeHandler(f))
+	}
+
 	TargetGroup := flameGroup.Group("/scrape/:job_name/static_target")
 	{
 		//add & update & remove
 		TargetGroup.POST("", UpdateTargetHandler(f))
+	}
+
+	// rule apis
+	RulesFile := flameGroup.Group("/rule_files")
+	{
+		RulesFile.GET("", listRuleFileHandler(f))
+		// rule file ends with .yaml or .yml
+		RulesFile.POST("", addRuleFileHandler(f))
+		RulesFile.DELETE("/:file_name", removeRuleFileHandler(f))
+
+		RulesGroup := RulesFile.Group("/:file_name/rule_groups")
+		{
+			RulesGroup.GET("", listRuleGroupHandler(f))
+			RulesGroup.GET("/:group_name", getRuleGroupHandler(f))
+			RulesGroup.POST("", addRuleGroupHandler(f))
+			RulesGroup.DELETE("/:group_name", removeRuleGroupHandler(f))
+			rules := RulesGroup.Group("/:group_name/rules")
+			{
+				rules.POST("", updateRulesHandler(f))
+			}
+		}
 	}
 }

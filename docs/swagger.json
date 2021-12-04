@@ -1,0 +1,62 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "flame提供相应的接口，用于prometheus的监控注册、告警添加",
+        "title": "flame接口说明",
+        "contact": {
+            "name": "solid"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/scrape": {
+            "get": {
+                "description": "可按labels进行筛选查询",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "prom"
+                ],
+                "summary": "查询scrape列表接口",
+                "parameters": [
+                    {
+                        "type": "object",
+                        "description": "可通过一个或多个label筛选，example：?labels[k1]=v1\u0026labels[k2]=v2",
+                        "name": "labels[psa]",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "返回值",
+                        "schema": {
+                            "$ref": "#/definitions/v1._ResponseScrapeList"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "v1._ResponseScrapeList": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "message": {
+                    "type": "string"
+                },
+                "res_id": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

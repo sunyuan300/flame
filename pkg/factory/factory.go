@@ -2,12 +2,21 @@ package factory
 
 import (
 	"github.com/prometheus/prometheus/config"
+	"github.com/prometheus/prometheus/pkg/rulefmt"
+	"sync"
 )
 
 type PromConfigInstance struct {
 	Config    *config.Config
 	ScrapeMap map[string]int
 	LabelsMap map[string]map[string][]string
+	Lock      sync.Mutex
+}
+
+type RulesConfigInstance struct {
+	RuleGroups     *rulefmt.RuleGroups
+	AllRulesGroups map[string]*rulefmt.RuleGroups
+	Lock           sync.Mutex
 }
 
 func (p *PromConfigInstance) UpdateScrapeCache() {
@@ -31,6 +40,7 @@ func (p *PromConfigInstance) UpdateScrapeCache() {
 	}
 	p.ScrapeMap = scrapeMap
 	p.LabelsMap = labelsMap
+	p.Lock.Unlock()
 
 }
 
@@ -41,6 +51,17 @@ func (p *PromConfigInstance) ExistsJobName(jobName string) bool {
 		return true
 	} else {
 		// not exists same name job
+		return false
+	}
+}
+
+func (r *RulesConfigInstance) ExistsRuleFileName(fileName string) bool {
+	_, ok := r.AllRulesGroups[fileName]
+	if ok {
+		// exists same name rule file
+		return true
+	} else {
+		// not exists same name rule file
 		return false
 	}
 }

@@ -21,14 +21,16 @@ import (
 
 func init() {
 	rootCmd.Flags().StringP("namespace", "n", "", "prometheus cluster namespace in k8s")
-	rootCmd.Flags().StringP("prometheus-configmap", "p", "", "configmap name for prometheus.yaml")
+	rootCmd.Flags().StringP("prometheus-configmap", "", "prometheus-config", "configmap name for prometheus.yaml")
 	rootCmd.Flags().StringP("prometheus.yml", "", "prometheus.yml", "prometheus.yml file name")
-	rootCmd.Flags().StringP("rule-configmap", "", "", "configmap name for prometheus.yaml")
+	rootCmd.Flags().StringP("rules-configmap", "", "rules-config", "configmap name for prometheus.yaml")
+	rootCmd.Flags().StringP("rule-dir", "", "/etc/prometheus/rules/", "rule dir, ends with /")
 	rootCmd.Flags().StringP("env", "", "dev", "run env")
 	_ = viper.BindPFlag("namespace", rootCmd.Flags().Lookup("namespace"))
 	_ = viper.BindPFlag("prometheus-configmap", rootCmd.Flags().Lookup("prometheus-configmap"))
 	_ = viper.BindPFlag("prometheus.yml", rootCmd.Flags().Lookup("prometheus.yml"))
-	_ = viper.BindPFlag("rule-configmap", rootCmd.Flags().Lookup("rule-configmap"))
+	_ = viper.BindPFlag("rules-configmap", rootCmd.Flags().Lookup("rules-configmap"))
+	_ = viper.BindPFlag("rule-dir", rootCmd.Flags().Lookup("rule-dir"))
 	_ = viper.BindPFlag("env", rootCmd.Flags().Lookup("env"))
 }
 
